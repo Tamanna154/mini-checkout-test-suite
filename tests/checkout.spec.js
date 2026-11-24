@@ -7,148 +7,160 @@ test.describe('Mini Checkout Customer Journey & Browser Test Suite', () => {
   let checkoutPage;
 
   test.beforeEach(async ({ page }) => {
-    // Each check starts from an isolated, clean state
+    // Each check starts from an isolated, clean application state
     checkoutPage = new CheckoutPage(page);
     await checkoutPage.goto();
   });
 
   // =========================================================================
-  // CHECK 1: Successful Checkout Produces a Confirmation with Reference
+  // TEST 1: Successful Checkout
+  // Requirements:
+  // - Start from a clean application state.
+  // - Add a product.
+  // - Enter a valid customer name.
+  // - Place the order.
+  // - Assert that the success confirmation is visible.
+  // - Assert that an order reference is displayed.
+  // - Assert that the correct total is displayed.
   // =========================================================================
-  test('Check 1: Successful checkout produces a clear order confirmation with unique reference', async ({ page }) => {
-    // 1. Customer adds products to cart
-    await checkoutPage.addHeadphones();
-    await checkoutPage.addKeyboard();
+  test('Test 1: Successful Checkout', async ({ page }) => {
+    // 1. Customer adds a product to cart (Wireless Mouse – ₹799)
+    await checkoutPage.addMouse();
+    await expect(checkoutPage.getCartItem('prod-mouse')).toBeVisible();
 
-    // Verify items are displayed in cart
-    await expect(checkoutPage.getCartItem('prod-headphones')).toBeVisible();
-    await expect(checkoutPage.getCartItem('prod-keyboard')).toBeVisible();
+    // Verify initial line total and order total
+    await expect(checkoutPage.getLineTotal('prod-mouse')).toHaveText('₹799');
+    await expect(checkoutPage.orderTotal).toHaveText('₹799');
 
-    // Verify totals before order ($79.99 + $49.99 = $129.98 subtotal; 8% tax = $10.40; total = $140.38)
-    await expect(checkoutPage.subtotalAmount).toHaveText('$129.98');
-    await expect(checkoutPage.taxAmount).toHaveText('$10.40');
-    await expect(checkoutPage.orderTotal).toHaveText('$140.38');
+    // 2. Customer enters a valid customer name
+    const validCustomerName = 'Alex Rivera';
+    await checkoutPage.setCustomerName(validCustomerName);
+    await expect(checkoutPage.customerNameInput).toHaveValue(validCustomerName);
 
-    // 2. Customer fills required field (Customer Name) and optional Email
-    const testCustomerName = 'Alex Rivera';
-    await checkoutPage.setCustomerName(testCustomerName);
-    await checkoutPage.setCustomerEmail('alex.rivera@example.com');
-
-    // 3. Customer places order
+    // 3. Customer places the order
     await checkoutPage.clickPlaceOrder();
 
-    // 4. Assert confirmation modal appears
+    // 4. Assert that the success confirmation is visible
     await expect(checkoutPage.confirmationModal).toBeVisible();
 
-    // 5. Assert confirmed customer name matches input
-    await expect(checkoutPage.confirmedName).toHaveText(testCustomerName);
-
-    // 6. Assert confirmed total matches expected total
-    await expect(checkoutPage.confirmedTotal).toHaveText('$140.38');
-
-    // 7. Assert a valid unique order reference is displayed (Format: ORD-XXXXXX-XXXX)
+    // 5. Assert that an order reference is displayed
     await expect(checkoutPage.orderReference).toBeVisible();
     const orderRefText = await checkoutPage.orderReference.textContent();
     expect(orderRefText).toMatch(/^ORD-\d{6}-\d{4}$/);
 
-    // 8. Assert Place Order button is disabled and prevents duplicate submission
+    // 6. Assert that the correct total is displayed
+    await expect(checkoutPage.confirmedTotal).toHaveText('₹799');
+
+    // Assert confirmed customer name matches input and place order button is guarded
+    await expect(checkoutPage.confirmedName).toHaveText(validCustomerName);
     await expect(checkoutPage.placeOrderBtn).toBeDisabled();
   });
 
   // =========================================================================
-  // CHECK 2: Missing Required Field Blocks Checkout & Preserves Input
+  // TEST 2: Missing Required Field
+  // Requirements:
+  // - Start from a clean application state.
+  // - Add a product.
+  // - Leave the customer name blank.
+  // - Click Place Order.
+  // - Assert that checkout is blocked.
+  // - Assert that the validation message is visible.
+  // - Assert that no success confirmation appears.
+  // - Verify that the cart is preserved.
   // =========================================================================
-  test('Check 2: Missing required field blocks checkout, shows validation message, and preserves state', async ({ page }) => {
-    // 1. Customer adds a product to cart
-    await checkoutPage.addHeadphones();
-    await expect(checkoutPage.getCartItem('prod-headphones')).toBeVisible();
+  test('Test 2: Missing Required Field', async ({ page }) => {
+    // 1. Customer adds a product to cart (Wireless Mouse – ₹799)
+    await checkoutPage.addMouse();
+    await expect(checkoutPage.getCartItem('prod-mouse')).toBeVisible();
 
-    // 2. Customer fills optional email but leaves the REQUIRED Full Name blank
-    await checkoutPage.setCustomerEmail('test.user@example.com');
-    await checkoutPage.setCustomerName('   '); // whitespace only
+    // 2. Customer leaves customer name blank (whitespace only)
+    await checkoutPage.setCustomerName('   ');
 
-    // 3. Customer attempts to place order
+    // 3. Customer clicks Place Order
     await checkoutPage.clickPlaceOrder();
 
-    // 4. Assert checkout is blocked: Confirmation modal MUST NOT be visible
+    // 4. Assert that checkout is blocked: confirmation modal MUST NOT be visible
     await expect(checkoutPage.confirmationModal).toBeHidden();
 
-    // 5. Assert clear validation error message is displayed to customer
+    // 5. Assert that the validation message is visible
     await expect(checkoutPage.nameError).toBeVisible();
     await expect(checkoutPage.nameError).toHaveText('Customer Name is required to place an order.');
 
-    // 6. Assert customer's input and cart are preserved (not wiped out)
-    await expect(checkoutPage.customerEmailInput).toHaveValue('test.user@example.com');
-    await expect(checkoutPage.getCartItem('prod-headphones')).toBeVisible();
-    await expect(checkoutPage.orderTotal).toHaveText('$86.39'); // $79.99 + $6.40 tax
+    // 6. Assert that no success confirmation appears
+    await expect(checkoutPage.confirmationModal).toBeHidden();
 
-    // 7. Recovery check: Customer now types their name; error clears and order succeeds
+    // 7. Verify that the cart is preserved
+    await expect(checkoutPage.getCartItem('prod-mouse')).toBeVisible();
+    await expect(checkoutPage.getItemQty('prod-mouse')).toHaveText('1');
+    await expect(checkoutPage.getLineTotal('prod-mouse')).toHaveText('₹799');
+    await expect(checkoutPage.orderTotal).toHaveText('₹799');
+
+    // Recovery check: enter name, error clears and checkout succeeds
     await checkoutPage.setCustomerName('Taylor Smith');
     await expect(checkoutPage.nameError).toBeHidden();
-
     await checkoutPage.clickPlaceOrder();
     await expect(checkoutPage.confirmationModal).toBeVisible();
     await expect(checkoutPage.confirmedName).toHaveText('Taylor Smith');
   });
 
   // =========================================================================
-  // CHECK 3: Quantity Change Updates Exact Line Totals and Order Total
+  // TEST 3: Quantity and Exact Total
+  // Requirements:
+  // - Start from a clean application state.
+  // - Add both products.
+  // - Increase the quantity of one product.
+  // - Assert the correct line total.
+  // - Assert the exact order total.
+  // - Verify the displayed total from the customer's perspective.
+  // Example:
+  // Mouse: ₹799 × 2 = ₹1,598
+  // Keyboard: ₹1,499 × 1 = ₹1,499
+  // Expected Order Total: ₹3,097
   // =========================================================================
-  test('Check 3: Quantity change updates exact line totals and order total', async ({ page }) => {
-    // 1. Add Headphones ($79.99 each)
-    await checkoutPage.addHeadphones();
-
-    // Initial state: 1 headphone
-    // Subtotal: $79.99, Tax: $6.40, Total: $86.39
-    await expect(checkoutPage.getItemQty('prod-headphones')).toHaveText('1');
-    await expect(checkoutPage.getLineTotal('prod-headphones')).toHaveText('$79.99');
-    await expect(checkoutPage.subtotalAmount).toHaveText('$79.99');
-    await expect(checkoutPage.taxAmount).toHaveText('$6.40');
-    await expect(checkoutPage.orderTotal).toHaveText('$86.39');
-
-    // 2. Increase quantity to 2 (+1)
-    await checkoutPage.getIncrementBtn('prod-headphones').click();
-
-    // Line total: 2 * $79.99 = $159.98
-    // Tax: 8% of $159.98 = $12.80
-    // Total: $159.98 + $12.80 = $172.78
-    await expect(checkoutPage.getItemQty('prod-headphones')).toHaveText('2');
-    await expect(checkoutPage.getLineTotal('prod-headphones')).toHaveText('$159.98');
-    await expect(checkoutPage.subtotalAmount).toHaveText('$159.98');
-    await expect(checkoutPage.taxAmount).toHaveText('$12.80');
-    await expect(checkoutPage.orderTotal).toHaveText('$172.78');
-
-    // 3. Add Keyboard ($49.99 each) to verify multi-product calculation
+  test('Test 3: Quantity and Exact Total', async ({ page }) => {
+    // 1. Add both products (Mouse ₹799, Keyboard ₹1,499)
+    await checkoutPage.addMouse();
     await checkoutPage.addKeyboard();
 
-    // Subtotal: $159.98 + $49.99 = $209.97
-    // Tax: 8% of $209.97 = $16.80
-    // Total: $209.97 + $16.80 = $226.77
+    await expect(checkoutPage.getCartItem('prod-mouse')).toBeVisible();
+    await expect(checkoutPage.getCartItem('prod-keyboard')).toBeVisible();
+
+    // Initial totals: Mouse 1x ₹799, Keyboard 1x ₹1,499 => ₹2,298
+    await expect(checkoutPage.getItemQty('prod-mouse')).toHaveText('1');
+    await expect(checkoutPage.getLineTotal('prod-mouse')).toHaveText('₹799');
     await expect(checkoutPage.getItemQty('prod-keyboard')).toHaveText('1');
-    await expect(checkoutPage.getLineTotal('prod-keyboard')).toHaveText('$49.99');
-    await expect(checkoutPage.subtotalAmount).toHaveText('$209.97');
-    await expect(checkoutPage.taxAmount).toHaveText('$16.80');
-    await expect(checkoutPage.orderTotal).toHaveText('$226.77');
+    await expect(checkoutPage.getLineTotal('prod-keyboard')).toHaveText('₹1,499');
+    await expect(checkoutPage.orderTotal).toHaveText('₹2,298');
 
-    // 4. Decrease headphones quantity back to 1 (-1)
-    await checkoutPage.getDecrementBtn('prod-headphones').click();
+    // 2. Increase the quantity of one product (Mouse to 2)
+    await checkoutPage.getIncrementBtn('prod-mouse').click();
 
-    // Headphones line total: $79.99; Keyboard: $49.99
-    // Subtotal: $129.98
-    // Tax: 8% of $129.98 = $10.40
-    // Total: $140.38
-    await expect(checkoutPage.getItemQty('prod-headphones')).toHaveText('1');
-    await expect(checkoutPage.getLineTotal('prod-headphones')).toHaveText('$79.99');
-    await expect(checkoutPage.subtotalAmount).toHaveText('$129.98');
-    await expect(checkoutPage.taxAmount).toHaveText('$10.40');
-    await expect(checkoutPage.orderTotal).toHaveText('$140.38');
+    // 3. Assert the correct line total
+    // Mouse: ₹799 × 2 = ₹1,598
+    await expect(checkoutPage.getItemQty('prod-mouse')).toHaveText('2');
+    await expect(checkoutPage.getLineTotal('prod-mouse')).toHaveText('₹1,598');
+
+    // Keyboard: ₹1,499 × 1 = ₹1,499
+    await expect(checkoutPage.getItemQty('prod-keyboard')).toHaveText('1');
+    await expect(checkoutPage.getLineTotal('prod-keyboard')).toHaveText('₹1,499');
+
+    // 4. Assert the exact order total and subtotal
+    // Expected Order Total: ₹1,598 + ₹1,499 = ₹3,097
+    await expect(checkoutPage.subtotalAmount).toHaveText('₹3,097');
+    await expect(checkoutPage.orderTotal).toHaveText('₹3,097');
+
+    // 5. Verify the displayed total from the customer's perspective in modal upon completion
+    await checkoutPage.setCustomerName('Jordan Lee');
+    await checkoutPage.clickPlaceOrder();
+    await expect(checkoutPage.confirmationModal).toBeVisible();
+    await expect(checkoutPage.confirmedTotal).toHaveText('₹3,097');
   });
 
   // =========================================================================
-  // ADDITIONAL CHECK 4: Empty Cart Blocks Checkout
+  // ADDITIONAL TEST 4: Empty Cart Blocks Checkout (Edge Case Verification)
   // =========================================================================
-  test('Check 4 (Risk Edge Case): Empty cart blocks checkout and displays clear warning', async ({ page }) => {
-    // Cart is empty initially
+  test('Test 4 (Edge Case): Empty cart blocks checkout and displays clear warning', async ({ page }) => {
+    // Open application with empty cart
     await expect(checkoutPage.cartEmptyState).toBeVisible();
 
     // Customer enters name
@@ -157,7 +169,7 @@ test.describe('Mini Checkout Customer Journey & Browser Test Suite', () => {
     // Attempt to place order with 0 items
     await checkoutPage.clickPlaceOrder();
 
-    // Confirmation must not open
+    // Confirmation must NOT open
     await expect(checkoutPage.confirmationModal).toBeHidden();
 
     // Cart error banner must show
@@ -169,11 +181,11 @@ test.describe('Mini Checkout Customer Journey & Browser Test Suite', () => {
   });
 
   // =========================================================================
-  // ADDITIONAL CHECK 5: Rapid Double-Click Does Not Produce Multiple Confirmations
+  // ADDITIONAL TEST 5: Rapid Double-Click Concurrency / Idempotency
   // =========================================================================
-  test('Check 5 (Risk Edge Case): Rapid double-click on Place Order produces exactly one confirmation', async ({ page }) => {
+  test('Test 5 (Edge Case): Rapid double-click on Place Order produces exactly one confirmation', async ({ page }) => {
     // Add product and fill name
-    await checkoutPage.addHeadphones();
+    await checkoutPage.addMouse();
     await checkoutPage.setCustomerName('Sam Jordan');
 
     // Rapid double-click simulation
@@ -186,7 +198,7 @@ test.describe('Mini Checkout Customer Journey & Browser Test Suite', () => {
     const confirmationModals = page.locator('[data-testid="confirmation-modal"]');
     await expect(confirmationModals).toHaveCount(1);
 
-    // Verify order reference is stable and singular
+    // Verify order reference is singular and matches pattern
     const orderRefs = page.locator('[data-testid="order-reference"]');
     await expect(orderRefs).toHaveCount(1);
     const orderRef = await orderRefs.textContent();
@@ -197,16 +209,16 @@ test.describe('Mini Checkout Customer Journey & Browser Test Suite', () => {
   });
 
   // =========================================================================
-  // ADDITIONAL CHECK 6: Item Removal Updates Order Summary & Clean Reset
+  // ADDITIONAL TEST 6: Item Removal & Clean Reset
   // =========================================================================
-  test('Check 6: Remove item cleans cart and Start New Order resets state cleanly', async ({ page }) => {
-    await checkoutPage.addHeadphones();
+  test('Test 6 (Edge Case): Item removal updates order total and Start New Order resets state cleanly', async ({ page }) => {
+    await checkoutPage.addMouse();
     await checkoutPage.addKeyboard();
 
     // Remove keyboard
     await checkoutPage.getRemoveBtn('prod-keyboard').click();
     await expect(checkoutPage.getCartItem('prod-keyboard')).toBeHidden();
-    await expect(checkoutPage.subtotalAmount).toHaveText('$79.99');
+    await expect(checkoutPage.orderTotal).toHaveText('₹799');
 
     // Complete order
     await checkoutPage.setCustomerName('Casey Diaz');
@@ -218,7 +230,7 @@ test.describe('Mini Checkout Customer Journey & Browser Test Suite', () => {
     await expect(checkoutPage.confirmationModal).toBeHidden();
     await expect(checkoutPage.cartEmptyState).toBeVisible();
     await expect(checkoutPage.customerNameInput).toHaveValue('');
-    await expect(checkoutPage.orderTotal).toHaveText('$0.00');
+    await expect(checkoutPage.orderTotal).toHaveText('₹0');
     await expect(checkoutPage.placeOrderBtn).toBeEnabled();
   });
 });

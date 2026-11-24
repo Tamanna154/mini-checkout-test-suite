@@ -2,7 +2,7 @@
 const { expect } = require('@playwright/test');
 
 /**
- * Page Object Model representing the Mini Checkout Page
+ * Page Object Model representing the AuraStore Mini Checkout Page
  */
 class CheckoutPage {
   /**
@@ -12,9 +12,9 @@ class CheckoutPage {
     this.page = page;
 
     // Product Catalog
-    this.headphonesCard = page.getByTestId('product-card-prod-headphones');
-    this.headphonesAddBtn = page.getByTestId('add-to-cart-btn-prod-headphones');
-    this.headphonesPrice = page.getByTestId('product-price-prod-headphones');
+    this.mouseCard = page.getByTestId('product-card-prod-mouse');
+    this.mouseAddBtn = page.getByTestId('add-to-cart-btn-prod-mouse');
+    this.mousePrice = page.getByTestId('product-price-prod-mouse');
 
     this.keyboardCard = page.getByTestId('product-card-prod-keyboard');
     this.keyboardAddBtn = page.getByTestId('add-to-cart-btn-prod-keyboard');
@@ -26,8 +26,6 @@ class CheckoutPage {
 
     // Financial Breakdown
     this.subtotalAmount = page.getByTestId('subtotal-amount');
-    this.taxAmount = page.getByTestId('tax-amount');
-    this.shippingAmount = page.getByTestId('shipping-amount');
     this.orderTotal = page.getByTestId('order-total');
 
     // Customer Form
@@ -79,8 +77,8 @@ class CheckoutPage {
   }
 
   // Actions
-  async addHeadphones() {
-    await this.headphonesAddBtn.click();
+  async addMouse() {
+    await this.mouseAddBtn.click();
   }
 
   async addKeyboard() {

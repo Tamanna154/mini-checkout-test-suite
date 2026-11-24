@@ -1,12 +1,16 @@
 /**
  * AuraStore - Mini Checkout Application
  * Features:
- * - 2 Synthetic Products with fixed prices
+ * - 2 Synthetic Products with fixed prices:
+ *   Product 1: Wireless Mouse – ₹799
+ *   Product 2: Mechanical Keyboard – ₹1,499
  * - Dynamic Cart (Add, Remove, Quantity adjustments)
- * - Accurate financial rounding (cents-based)
- * - Strict Validation (Empty cart block, required name validation)
- * - Input value preservation on validation errors
- * - Rapid double-click protection (Idempotency)
+ * - Accurate calculations: Line Total = Unit Price × Quantity, Order Total = Sum of All Line Totals
+ * - Prevention of invalid quantities (minimum 1, disabled decrement at 1)
+ * - Currency formatting in INR (₹)
+ * - Strict Validation (Empty cart block, blank name validation)
+ * - Full data preservation on validation failures
+ * - Synchronous Submission Guard against rapid double-clicks (Idempotency)
  */
 
 (function () {
@@ -15,22 +19,20 @@
   // 1. Synthetic Products Catalog
   const PRODUCTS = [
     {
-      id: 'prod-headphones',
-      name: 'Aura Pro Wireless Headphones',
-      description: 'Active noise cancellation with 40-hour battery life.',
-      priceCents: 7999, // $79.99
-      icon: '🎧'
+      id: 'prod-mouse',
+      name: 'Wireless Mouse',
+      description: 'Ergonomic 2.4GHz wireless optical mouse with silent clicks.',
+      price: 799,
+      icon: '🖱️'
     },
     {
       id: 'prod-keyboard',
-      name: 'KeyForge Mechanical Keyboard',
+      name: 'Mechanical Keyboard',
       description: 'Ergonomic hot-swappable switches with RGB backlight.',
-      priceCents: 4999, // $49.99
+      price: 1499,
       icon: '⌨️'
     }
   ];
-
-  const TAX_RATE = 0.08; // 8%
 
   // 2. Application State
   const state = {
@@ -40,13 +42,14 @@
     orderReference: null
   };
 
+  // Synchronous submission lock (guard against rapid double-clicks)
+  let submissionGuard = false;
+
   // 3. DOM Elements Cache
   const elements = {
     productsContainer: document.getElementById('productsContainer'),
     cartItemsList: document.getElementById('cartItemsList'),
     subtotalAmount: document.getElementById('subtotalAmount'),
-    taxAmount: document.getElementById('taxAmount'),
-    shippingAmount: document.getElementById('shippingAmount'),
     orderTotal: document.getElementById('orderTotal'),
     customerName: document.getElementById('customerName'),
     customerEmail: document.getElementById('customerEmail'),
@@ -62,8 +65,11 @@
   };
 
   // 4. Utility Functions
-  function formatCurrency(cents) {
-    return '$' + (cents / 100).toFixed(2);
+  function formatCurrency(amount) {
+    if (typeof amount !== 'number' || isNaN(amount)) {
+      return '₹0';
+    }
+    return '₹' + amount.toLocaleString('en-IN');
   }
 
   function getCartItemCount() {
@@ -71,23 +77,17 @@
   }
 
   function calculateTotals() {
-    let subtotalCents = 0;
+    let orderTotal = 0;
     for (const [productId, qty] of Object.entries(state.cart)) {
       const product = PRODUCTS.find(p => p.id === productId);
       if (product && qty > 0) {
-        subtotalCents += product.priceCents * qty;
+        orderTotal += product.price * qty;
       }
     }
 
-    const taxCents = Math.round(subtotalCents * TAX_RATE);
-    const shippingCents = 0; // Free shipping
-    const totalCents = subtotalCents + taxCents + shippingCents;
-
     return {
-      subtotalCents,
-      taxCents,
-      shippingCents,
-      totalCents
+      subtotal: orderTotal,
+      orderTotal: orderTotal
     };
   }
 
@@ -103,7 +103,7 @@
           <p class="product-description">${prod.description}</p>
         </div>
         <div class="product-footer">
-          <span class="product-price" data-testid="product-price-${prod.id}">${formatCurrency(prod.priceCents)}</span>
+          <span class="product-price" data-testid="product-price-${prod.id}">${formatCurrency(prod.price)}</span>
           <button
             type="button"
             class="btn-add-product"
@@ -141,13 +141,13 @@
       elements.cartItemsList.innerHTML = itemEntries.map(([productId, qty]) => {
         const product = PRODUCTS.find(p => p.id === productId);
         if (!product) return '';
-        const lineTotalCents = product.priceCents * qty;
+        const lineTotal = product.price * qty;
 
         return `
           <div class="cart-item-row" data-testid="cart-item-${product.id}">
             <div class="cart-item-info">
               <span class="cart-item-title" data-testid="cart-item-title-${product.id}">${product.name}</span>
-              <span class="cart-item-unit-price" data-testid="cart-item-unit-price-${product.id}">${formatCurrency(product.priceCents)} each</span>
+              <span class="cart-item-unit-price" data-testid="cart-item-unit-price-${product.id}">${formatCurrency(product.price)} each</span>
             </div>
             <div class="cart-item-controls">
               <button
@@ -156,6 +156,7 @@
                 data-testid="decrement-qty-btn-${product.id}"
                 data-product-id="${product.id}"
                 aria-label="Decrease quantity of ${product.name}"
+                ${qty <= 1 ? 'disabled aria-disabled="true"' : ''}
               >−</button>
               <span class="qty-display" data-testid="item-qty-${product.id}">${qty}</span>
               <button
@@ -167,7 +168,7 @@
               >+</button>
             </div>
             <div class="cart-item-price-col">
-              <div class="cart-line-total" data-testid="line-total-${product.id}">${formatCurrency(lineTotalCents)}</div>
+              <div class="cart-line-total" data-testid="line-total-${product.id}">${formatCurrency(lineTotal)}</div>
               <button
                 type="button"
                 class="btn-remove-item"
@@ -203,39 +204,47 @@
       });
     }
 
-    // Update totals
+    // Update totals accurately
     const totals = calculateTotals();
-    elements.subtotalAmount.textContent = formatCurrency(totals.subtotalCents);
-    elements.taxAmount.textContent = formatCurrency(totals.taxCents);
-    elements.shippingAmount.textContent = totals.subtotalCents > 0 ? 'FREE' : '$0.00';
-    elements.orderTotal.textContent = formatCurrency(totals.totalCents);
+    if (elements.subtotalAmount) {
+      elements.subtotalAmount.textContent = formatCurrency(totals.subtotal);
+    }
+    if (elements.orderTotal) {
+      elements.orderTotal.textContent = formatCurrency(totals.orderTotal);
+    }
   }
 
   // 6. Cart Actions
   function addToCart(productId) {
-    if (state.orderPlaced) return; // Disallow edits after order
+    if (state.orderPlaced || state.isSubmitting) return; // Disallow edits during or after order
     state.cart[productId] = (state.cart[productId] || 0) + 1;
     clearCartError();
     renderCart();
   }
 
   function updateQuantity(productId, delta) {
-    if (state.orderPlaced) return;
+    if (state.orderPlaced || state.isSubmitting) return;
     const currentQty = state.cart[productId] || 0;
     const newQty = currentQty + delta;
 
-    if (newQty <= 0) {
-      delete state.cart[productId];
-    } else {
-      state.cart[productId] = newQty;
+    // Prevent invalid quantities: minimum is 1; cannot drop below 1 with decrement
+    if (newQty < 1) {
+      return;
     }
+    // Prevent unrealistic or invalid high quantities
+    if (newQty > 99) {
+      return;
+    }
+
+    state.cart[productId] = newQty;
     clearCartError();
     renderCart();
   }
 
   function removeFromCart(productId) {
-    if (state.orderPlaced) return;
+    if (state.orderPlaced || state.isSubmitting) return;
     delete state.cart[productId];
+    clearCartError();
     renderCart();
   }
 
@@ -264,49 +273,43 @@
     elements.cartError.classList.remove('visible');
   }
 
-  // 8. Place Order & Idempotent Submission Protection
+  // 8. Place Order & Synchronous Idempotent Guard
   function handlePlaceOrder() {
-    // Race-condition guard: If already submitting or already placed, ignore click!
-    if (state.isSubmitting || state.orderPlaced) {
+    // SYNCHRONOUS SUBMISSION GUARD:
+    // If order is already submitted, or in-flight, immediately exit synchronously!
+    if (submissionGuard || state.orderPlaced) {
       return;
     }
 
-    let isValid = true;
-
-    // Validate Required Customer Name (Preserves value if invalid)
-    const nameValue = (elements.customerName.value || '').trim();
-    if (!nameValue) {
-      showNameError('Customer Name is required to place an order.');
-      elements.customerName.focus();
-      isValid = false;
-    } else {
-      clearNameError();
-    }
-
-    // Validate Cart Non-Empty
+    // 1. Validate Cart Non-Empty
     const itemCount = getCartItemCount();
     if (itemCount === 0) {
       showCartError('Cannot place order: Your cart is empty. Please add at least one product.');
-      isValid = false;
+      return; // Cart and customer name input are preserved
     } else {
       clearCartError();
     }
 
-    if (!isValid) {
-      // NOTE: User's entered form values are deliberately preserved!
-      return;
+    // 2. Validate Required Customer Name (Preserves value if invalid)
+    const nameValue = (elements.customerName.value || '').trim();
+    if (!nameValue) {
+      showNameError('Customer Name is required to place an order.');
+      elements.customerName.focus();
+      return; // Cart and customer name input are preserved
+    } else {
+      clearNameError();
     }
 
-    // Set lock immediately to block any subsequent rapid double-clicks
+    // 3. Immediately engage synchronous lock
+    // Prevents any rapid double-click events from creating two confirmations
+    submissionGuard = true;
     state.isSubmitting = true;
     elements.placeOrderBtn.disabled = true;
     elements.placeOrderBtn.classList.add('loading');
     elements.placeOrderBtn.querySelector('.btn-text').textContent = 'Processing...';
 
-    // Simulate realistic async transaction completion (or instant dispatch)
-    setTimeout(() => {
-      completeOrder(nameValue);
-    }, 200);
+    // 4. Complete order
+    completeOrder(nameValue);
   }
 
   function completeOrder(customerName) {
@@ -321,7 +324,7 @@
     // Populate confirmation modal
     elements.confirmReference.textContent = uniqueRef;
     elements.confirmCustomerName.textContent = customerName;
-    elements.confirmTotal.textContent = formatCurrency(totals.totalCents);
+    elements.confirmTotal.textContent = formatCurrency(totals.orderTotal);
 
     // List confirmed items
     const itemsHtml = Object.entries(state.cart)
@@ -330,7 +333,7 @@
         return prod ? `
           <div class="confirm-item-row">
             <span>${prod.name} × ${qty}</span>
-            <span>${formatCurrency(prod.priceCents * qty)}</span>
+            <span>${formatCurrency(prod.price * qty)}</span>
           </div>
         ` : '';
       })
@@ -341,7 +344,7 @@
     elements.confirmationModal.hidden = false;
     elements.confirmationModal.removeAttribute('hidden');
 
-    // Keep place order button permanently disabled for this completed order
+    // Permanently disable place order button for this completed order
     elements.placeOrderBtn.classList.remove('loading');
     elements.placeOrderBtn.querySelector('.btn-text').textContent = 'Order Placed';
     elements.placeOrderBtn.disabled = true;
@@ -353,6 +356,7 @@
     state.isSubmitting = false;
     state.orderPlaced = false;
     state.orderReference = null;
+    submissionGuard = false;
 
     // Reset inputs
     elements.customerName.value = '';

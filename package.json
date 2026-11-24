@@ -9,9 +9,9 @@
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "test:report": "playwright show-report",
-    "test:check1": "playwright test -g \"Check 1\"",
-    "test:check2": "playwright test -g \"Check 2\"",
-    "test:check3": "playwright test -g \"Check 3\""
+    "test:check1": "playwright test -g \"Test 1\"",
+    "test:check2": "playwright test -g \"Test 2\"",
+    "test:check3": "playwright test -g \"Test 3\""
   },
   "keywords": [
     "sdet",
