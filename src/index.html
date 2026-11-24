@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AuraStore - Mini Checkout</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="brand">
+        <span class="brand-logo" aria-hidden="true">🛍️</span>
+        <div class="brand-text">
+          <h1>AuraStore</h1>
+          <p class="tagline">Single-Page Mini Checkout Experience</p>
+        </div>
+      </div>
+      <div class="badge-env">Browser Test Suite Demo</div>
+    </header>
+
+    <main class="checkout-grid">
+      <!-- Left Column: Products & Customer Form -->
+      <section class="store-section" aria-labelledby="products-heading">
+        <h2 id="products-heading" class="section-title">Available Products</h2>
+        <div class="products-grid" id="productsContainer">
+          <!-- Product cards will be rendered dynamically or statically -->
+        </div>
+
+        <section class="customer-section" aria-labelledby="customer-heading">
+          <h2 id="customer-heading" class="section-title">Customer Information</h2>
+          <form id="checkoutForm" novalidate onsubmit="return false;">
+            <div class="form-group">
+              <label for="customerName">
+                Full Name <span class="required-indicator" aria-hidden="true">*</span>
+              </label>
+              <input
+                type="text"
+                id="customerName"
+                name="customerName"
+                class="form-input"
+                placeholder="e.g. Jane Doe"
+                autocomplete="name"
+                aria-required="true"
+                aria-describedby="nameError"
+                data-testid="customer-name-input"
+              />
+              <div id="nameError" class="validation-message" role="alert" aria-live="polite" data-testid="name-error"></div>
+            </div>
+
+            <div class="form-group">
+              <label for="customerEmail">Email Address (Optional)</label>
+              <input
+                type="email"
+                id="customerEmail"
+                name="customerEmail"
+                class="form-input"
+                placeholder="e.g. jane.doe@example.com"
+                autocomplete="email"
+                data-testid="customer-email-input"
+              />
+            </div>
+          </form>
+        </section>
+      </section>
+
+      <!-- Right Column: Cart & Summary -->
+      <aside class="cart-summary-section" aria-labelledby="cart-heading">
+        <h2 id="cart-heading" class="section-title">Your Order Summary</h2>
+
+        <div id="cartError" class="validation-message-banner" role="alert" aria-live="polite" data-testid="cart-error"></div>
+
+        <div class="cart-items-container" id="cartItemsList" data-testid="cart-items-list">
+          <!-- Cart items rendered here -->
+        </div>
+
+        <div class="summary-breakdown" id="summaryBreakdown">
+          <div class="summary-row">
+            <span class="label">Subtotal</span>
+            <span class="value" id="subtotalAmount" data-testid="subtotal-amount">$0.00</span>
+          </div>
+          <div class="summary-row">
+            <span class="label">Estimated Tax (8%)</span>
+            <span class="value" id="taxAmount" data-testid="tax-amount">$0.00</span>
+          </div>
+          <div class="summary-row">
+            <span class="label">Standard Shipping</span>
+            <span class="value" id="shippingAmount" data-testid="shipping-amount">FREE</span>
+          </div>
+          <div class="summary-divider"></div>
+          <div class="summary-row total-row">
+            <span class="label">Order Total</span>
+            <span class="value total-value" id="orderTotal" data-testid="order-total">$0.00</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          id="placeOrderBtn"
+          class="btn-place-order"
+          data-testid="place-order-btn"
+        >
+          <span class="btn-text">Place Order</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
+        </button>
+
+        <p class="security-note">
+          🔒 Secure 256-bit encrypted checkout. No actual payment processed.
+        </p>
+      </aside>
+    </main>
+
+    <!-- Confirmation Modal / Card -->
+    <div
+      id="confirmationModal"
+      class="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirmHeading"
+      hidden
+      data-testid="confirmation-modal"
+    >
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="success-icon" aria-hidden="true">✓</div>
+          <h2 id="confirmHeading" class="modal-title">Order Confirmed!</h2>
+          <p class="modal-subtitle">Thank you for your purchase. We have received your order.</p>
+        </div>
+
+        <div class="confirmation-details">
+          <div class="detail-row highlight-box">
+            <span class="detail-label">Order Reference:</span>
+            <span class="detail-value reference-code" id="confirmReference" data-testid="order-reference">ORD-000000</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Recipient Name:</span>
+            <span class="detail-value" id="confirmCustomerName" data-testid="confirmed-name">Jane Doe</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Total Charged:</span>
+            <span class="detail-value font-bold" id="confirmTotal" data-testid="confirmed-total">$0.00</span>
+          </div>
+
+          <div class="items-summary-list">
+            <h4>Purchased Items</h4>
+            <div id="confirmItemsList" class="confirm-items" data-testid="confirmed-items-list"></div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" id="startNewOrderBtn" class="btn-secondary" data-testid="start-new-order-btn">
+            Start New Order
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

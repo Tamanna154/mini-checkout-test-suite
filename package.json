@@ -1,0 +1,29 @@
+{
+  "name": "mini-checkout-test-suite",
+  "version": "1.0.0",
+  "description": "Mini Checkout single-page application and end-to-end browser test suite (SDET Hackathon)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report",
+    "test:check1": "playwright test -g \"Check 1\"",
+    "test:check2": "playwright test -g \"Check 2\"",
+    "test:check3": "playwright test -g \"Check 3\""
+  },
+  "keywords": [
+    "sdet",
+    "playwright",
+    "checkout",
+    "testing",
+    "e2e",
+    "qa"
+  ],
+  "author": "SDET Intern Candidate",
+  "license": "MIT",
+  "devDependencies": {
+    "@playwright/test": "^1.50.0"
+  }
+}
