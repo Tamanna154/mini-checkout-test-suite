@@ -1,0 +1,21 @@
+{
+  "test4": {
+    "isCartEmptyInitially": true,
+    "isModalVisibleAfterSubmit": false,
+    "isCartErrorVisible": true,
+    "cartErrorText": "Cannot place order: Your cart is empty. Please add at least one product.",
+    "preservedName": "Jane Doe",
+    "orderCreated": false,
+    "verdict": "PASSED (No defect)"
+  },
+  "test5": {
+    "modalCount": 1,
+    "orderRefCount": 1,
+    "orderReference": "ORD-850645-8877",
+    "orderReferenceStable": true,
+    "confirmedName": "Alex Rivera",
+    "confirmedTotal": "₹799",
+    "isButtonDisabled": true,
+    "verdict": "PASSED (No defect)"
+  }
+}
